@@ -1,0 +1,1 @@
+把DXF扔进这个文件夹，文件名带 _3mm 或 _5mm，GitHub自动打断口，结果进 outgoing/
