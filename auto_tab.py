@@ -117,7 +117,8 @@ def seg_key(p1, p2):
 
 def extract_segments(doc, msp, issue):
     """
-    把 LINE / LWPOLYLINE(直线段) 抽成线段表；ARC/CIRCLE/LWPOLYLINE圆弧段记为 curved；
+    把 LINE / LWPOLYLINE(直线段) / 二维POLYLINE 抽成线段表；
+    ARC/CIRCLE/LWPOLYLINE圆弧段/POLYLINE圆弧段记为 curved；
     SPLINE 只记录问题（手册：不许用样条）。
     返回 (segments, curved, stats)
     segment: dict(p1, p2, color, src)
@@ -153,8 +154,57 @@ def extract_segments(doc, msp, issue):
             curved.append(dict(kind=t.lower(), color=color, entity=e))
             stats[t] += 1
         elif t == "POLYLINE":
-            issue.warn("发现 POLYLINE（3D多段线），已跳过，请转成 LWPOLYLINE")
-            stats["POLYLINE_SKIP"] += 1
+            # 老格式二维多段线：直接拆成线段（R12 输入建不了 LWPOLYLINE 实体，
+            # 故不重建实体、只抽几何）；真3D（顶点 Z 不全等）才跳过
+            try:
+                raw = [(v.dxf.location, v.dxf.bulge) for v in e.vertices]
+            except Exception:
+                try:
+                    raw = [(v.dxf.location, 0.0) for v in e.vertices]
+                except Exception:
+                    raw = []
+            zs = set()
+            verts = []
+            for loc, b in raw:
+                try:
+                    zs.add(round(float(loc.z), 6))
+                    verts.append((float(loc.x), float(loc.y), float(b)))
+                except Exception:
+                    pass
+            if len(zs) > 1:
+                issue.warn("发现真3D POLYLINE，已跳过（断口只打平面轮廓）")
+                stats["POLYLINE_SKIP"] += 1
+            elif len(verts) >= 2:
+                n = len(verts)
+                try:
+                    closed = bool(e.is_closed)
+                except Exception:
+                    closed = False
+                rng = range(n) if closed else range(n - 1)
+                for i in rng:
+                    x1, y1, b1 = verts[i]
+                    x2, y2 = verts[(i + 1) % n][0], verts[(i + 1) % n][1]
+                    if abs(b1) > 1e-9:
+                        try:
+                            from ezdxf.math import bulge_to_arc
+                            c, sa, ea, r = bulge_to_arc((x1, y1), (x2, y2), b1)
+                            curved.append(dict(
+                                kind="bulge_arc", color=color,
+                                center=(float(c.x), float(c.y)), radius=float(r),
+                                start_angle=math.degrees(sa),
+                                end_angle=math.degrees(ea)))
+                            stats["PLINE_ARC"] += 1
+                        except Exception:
+                            segments.append(dict(p1=(x1, y1), p2=(x2, y2),
+                                                color=color, src="POLYLINE"))
+                            stats["LWP_LINE"] += 1
+                    else:
+                        segments.append(dict(p1=(x1, y1), p2=(x2, y2),
+                                            color=color, src="POLYLINE"))
+                        stats["LWP_LINE"] += 1
+                stats["POLYLINE_CONV"] += 1
+            else:
+                stats["POLYLINE_SKIP"] += 1
         elif t == "SPLINE":
             issue.err("发现 SPLINE 样条曲线（手册禁止）：请在 CAD 里重画为直线/圆弧后再跑")
             stats["SPLINE"] += 1
@@ -500,7 +550,19 @@ def apply_tabs(white_segs, plans, tab_width):
 # ---------------- 输出 DXF ----------------
 def copy_curved(msp, item):
     """把 curved 条目原样写回新图"""
-    e, color = item["entity"], item["color"]
+    color = item["color"]
+    if item.get("kind") == "bulge_arc":
+        # POLYLINE 圆弧段（无源实体，按参数重建）
+        try:
+            msp.add_arc(
+                center=item["center"], radius=item["radius"],
+                start_angle=item["start_angle"], end_angle=item["end_angle"],
+                dxfattribs={"color": color},
+            )
+        except Exception:
+            pass
+        return
+    e = item["entity"]
     t = e.dxftype()
     try:
         if t == "ARC":
