@@ -42,6 +42,12 @@ $PY auto_tab.py 输入.dxf --thickness 3 --out 输出.dxf --no-png
 
 **交付前必做**：放大复核图，确认每个缺口实际存在。缺口看不见 = 没打。
 
+## GitHub 自动测试（不用装任何东西）
+
+1. 打开仓库网页，把 DXF 上传到 `incoming/` 文件夹（Add file → Upload files）
+2. 文件名带上厚度：`零件A_3mm.dxf` / `零件B_5mm.dxf`（不带默认按 3mm）
+3. 等 1-2 分钟，打开 `outgoing/` 文件夹：打好断口的 DXF + 复核图都在，直接下载
+
 ## 脚本干了什么（按顺序）
 
 1. **预检样条**：发现 SPLINE 直接中止（手册禁止用样条），未改动任何文件
