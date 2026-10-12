@@ -48,6 +48,23 @@ $PY auto_tab.py 输入.dxf --thickness 3 --out 输出.dxf --no-png
 2. 文件名带上厚度：`零件A_3mm.dxf` / `零件B_5mm.dxf`（不带默认按 3mm）
 3. 等 1-2 分钟，打开 `outgoing/` 文件夹：打好断口的 DXF + 复核图都在，直接下载
 
+## 一键规范化（AI/SVG/PDF 图转规范）
+
+AI（Illustrator）导出的图经常是黑线，激光要的是白线切透：
+
+```bash
+python normalize.py 输入.svg --out 规范.dxf     # SVG黑线→白线
+python normalize.py 输入.pdf --out 规范.dxf     # PDF矢量→DXF
+python normalize.py 输入.dxf --out 规范.dxf     # DXF颜色重映射
+```
+
+默认黑→白，可用 `--map black:white,blue:white` 自定义。SVG 用 `--scale` 调整单位→mm。
+
+## 拖拽版（Windows exe，打包中）
+
+`laserbox.py`：把 DXF/SVG/PDF 直接拖到 exe 图标上 → 自动规范化+打断口 → 原目录出 `xxx_断口.dxf`。
+文件名带 `_3mm`/`_5mm` 自动识别板厚。exe 由 GitHub Actions 自动打包（Actions 页下载 LaserTab-win64）。
+
 ## 脚本干了什么（按顺序）
 
 1. **预检样条**：发现 SPLINE 直接中止（手册禁止用样条），未改动任何文件
