@@ -1,0 +1,54 @@
+{
+  "ruleset_id": "laser-project-default",
+  "ruleset_version": "1.0.0",
+  "status": "candidate",
+  "units": "mm",
+  "materials": [
+    {
+      "board_thickness_mm": 3,
+      "tab_width_mm": 0.7
+    },
+    {
+      "board_thickness_mm": 5,
+      "tab_width_mm": 0.6
+    }
+  ],
+  "color_profiles": {
+    "project-baseline": {
+      "status": "confirmed-from-project-history",
+      "mapping": {
+        "ACI:7": "cut_through",
+        "ACI:1": "engrave",
+        "ACI:3": "inner_cut_or_waste"
+      },
+      "require_preview_for_unmapped_colors": true
+    }
+  },
+  "tab_placement": {
+    "eligible_actions": [
+      "cut_through"
+    ],
+    "avoid": [
+      "arc",
+      "groove_bottom",
+      "true_corner",
+      "true_endpoint"
+    ],
+    "use_continuous_straight_run_not_fragment_midpoint": true,
+    "preserve_original_geometry": true,
+    "require_per_part_self_check": true,
+    "block_production_when_required_tabs_missing": true
+  },
+  "sheet_split": {
+    "keep_complete_parts_together": true,
+    "block_production_when_part_crosses_split_without_approval": true,
+    "require_preview_before_export": true
+  },
+  "run_record": {
+    "record_ruleset_id": true,
+    "record_ruleset_version": true,
+    "record_input_sha256": true,
+    "record_output_sha256": true,
+    "record_warnings_and_errors": true
+  }
+}
