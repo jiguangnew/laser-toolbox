@@ -1,0 +1,32 @@
+name: Laser Toolbox Smoke Test
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install ezdxf matplotlib
+      - name: Compile Python sources
+        run: python -m py_compile auto_tab.py normalize.py make_test_dxf.py
+      - name: Run 3 mm sample
+        run: python auto_tab.py test_input.dxf --thickness 3 --out test_output_3mm.dxf
+      - name: Upload test outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: laser-toolbox-smoke-test
+          path: |
+            test_output_3mm.dxf
+            test_input_断口_review.png
+            test_input_断口_review_detail_*.png
+          if-no-files-found: warn
