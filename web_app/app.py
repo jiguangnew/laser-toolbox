@@ -11,9 +11,11 @@ from pathlib import Path
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
 
-BASE = Path(__file__).resolve().parent
-PROCESSOR = BASE / "auto_tab.py"
-if not PROCESSOR.exists():
+FROZEN = bool(getattr(sys, "frozen", False))
+BASE = Path(sys.executable).resolve().parent if FROZEN else Path(__file__).resolve().parent
+RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", BASE))
+PROCESSOR = RESOURCE_ROOT / ("laser_processor.exe" if FROZEN else "auto_tab.py")
+if not PROCESSOR.exists() and not FROZEN:
     PROCESSOR = BASE.parent / "auto_tab.py"
 VENDOR = BASE / "vendor"
 if VENDOR.exists():
@@ -26,12 +28,14 @@ app = FastAPI(title="���⹤������Ͽڲ��԰�", docs_url=No
 
 
 def missing_runtime_packages():
+    if FROZEN:
+        return []
     return [name for name in ("ezdxf", "matplotlib") if importlib.util.find_spec(name) is None]
 
 
 @app.get("/", response_class=HTMLResponse)
 def index():
-    return (BASE / "index.html").read_text(encoding="utf-8")
+    return (RESOURCE_ROOT / "index.html").read_text(encoding="utf-8")
 
 
 @app.get("/health")
@@ -62,7 +66,8 @@ async def process(file: UploadFile = File(...), thickness: int = Form(...)):
     source = folder / "source_original.dxf"
     output = folder / "result_test_only.dxf"
     source.write_bytes(payload)
-    cmd = [sys.executable, str(PROCESSOR), str(source), "--thickness", str(thickness), "--out", str(output)]
+    cmd = ([str(PROCESSOR), str(source), "--thickness", str(thickness), "--out", str(output)]
+           if FROZEN else [sys.executable, str(PROCESSOR), str(source), "--thickness", str(thickness), "--out", str(output)])
     env = os.environ.copy()
     env["PYTHONPATH"] = str(VENDOR) + os.pathsep + env.get("PYTHONPATH", "")
     env["MPLBACKEND"] = "Agg"
@@ -100,5 +105,6 @@ def get_file(run_id: str, name: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8765, reload=False)
+    print("���⹤���������������Դ� http://127.0.0.1:8765���ֻ���ͨ��ͬһ Wi-Fi �µĵ��Ե�ַ���ʡ�")
+    uvicorn.run(app, host="0.0.0.0", port=8765, reload=False)
 

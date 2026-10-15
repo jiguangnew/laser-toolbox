@@ -32,3 +32,25 @@ jobs:
             test_input_断口_review.png
             test_input_断口_review_detail_*.png
           if-no-files-found: warn
+
+  windows-package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install app dependencies and packager
+        run: python -m pip install -r web_app/requirements.txt pyinstaller
+      - name: Build standalone DXF processor
+        run: python -m PyInstaller --clean --noconfirm --onefile --name laser_processor auto_tab.py
+      - name: Stage processor for the web app
+        run: Copy-Item dist/laser_processor.exe web_app/laser_processor.exe
+      - name: Build web app executable
+        run: python -m PyInstaller --clean --noconfirm --onefile --name LaserToolbox --add-data "web_app/index.html;." --add-data "web_app/laser_processor.exe;." --collect-all uvicorn --collect-all fastapi --collect-all starlette --hidden-import python_multipart web_app/app.py
+      - name: Upload Windows app
+        uses: actions/upload-artifact@v4
+        with:
+          name: LaserToolbox-Windows-test-build
+          path: dist/LaserToolbox.exe
+          if-no-files-found: error
