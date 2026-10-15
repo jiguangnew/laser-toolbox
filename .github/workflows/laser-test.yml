@@ -48,6 +48,21 @@ jobs:
         run: Copy-Item dist/laser_processor.exe web_app/laser_processor.exe
       - name: Build web app executable
         run: python -m PyInstaller --clean --noconfirm --onefile --name LaserToolbox --add-data "web_app/index.html;." --add-data "web_app/laser_processor.exe;." --collect-all uvicorn --collect-all fastapi --collect-all starlette --hidden-import python_multipart web_app/app.py
+      - name: Smoke-test packaged app
+        shell: pwsh
+        run: |
+          $proc = Start-Process -FilePath "dist/LaserToolbox.exe" -PassThru -WindowStyle Hidden
+          try {
+            $health = $null
+            for ($i = 0; $i -lt 30; $i++) {
+              try { $health = Invoke-RestMethod http://127.0.0.1:8765/health; break } catch { Start-Sleep -Seconds 1 }
+            }
+            if (-not $health -or -not $health.ok) { throw "Packaged app health check failed: $($health | ConvertTo-Json -Compress)" }
+            $page = Invoke-WebRequest http://127.0.0.1:8765/
+            if ($page.StatusCode -ne 200 -or $page.Content -notmatch '断口处理测试') { throw "Packaged web page did not render" }
+          } finally {
+            if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
+          }
       - name: Upload Windows app
         uses: actions/upload-artifact@v4
         with:
