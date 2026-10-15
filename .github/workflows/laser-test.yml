@@ -59,7 +59,11 @@ jobs:
             }
             if (-not $health -or -not $health.ok) { throw "Packaged app health check failed: $($health | ConvertTo-Json -Compress)" }
             $page = Invoke-WebRequest http://127.0.0.1:8765/
-            if ($page.StatusCode -ne 200 -or $page.Content -notmatch '断口处理测试') { throw "Packaged web page did not render" }
+            if ($page.StatusCode -ne 200) { throw "Packaged web page returned HTTP $($page.StatusCode)" }
+            if ($page.Content -notmatch 'LASER TOOLBOX') {
+              $snippet = $page.Content.Substring(0, [Math]::Min(240, $page.Content.Length))
+              throw "Packaged web page marker missing. Length=$($page.Content.Length); snippet=$snippet"
+            }
           } finally {
             if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
           }
