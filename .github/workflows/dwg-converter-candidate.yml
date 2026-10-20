@@ -1,0 +1,66 @@
+name: Build DWG decoder candidate
+on:
+  push:
+    branches:
+      - feat/mobile-web-toolbox-v0.1
+    paths:
+      - .github/workflows/dwg-converter-candidate.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-open-source-dwg-decoder:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential pkg-config autoconf automake libtool libpcre2-dev zlib1g-dev
+      - name: Download official GNU LibreDWG source (no customer drawings)
+        run: |
+          curl -fL --retry 2 -o libredwg-0.14.tar.gz https://ftp.gnu.org/gnu/libredwg/libredwg-0.14.tar.gz
+          tar -xf libredwg-0.14.tar.gz
+      - name: Build LibreDWG open-source reader
+        run: |
+          cd libredwg-0.14
+          ./configure --disable-shared --disable-bindings --disable-docs
+          make -j2
+          ./programs/dwgread --version
+      - name: Package candidate binary
+        run: |
+          mkdir -p package
+          cp libredwg-0.14/programs/dwgread package/
+          cp libredwg-0.14/programs/dwg2dxf package/
+          cp libredwg-0.14/COPYING package/
+          ldd package/dwgread > package/ldd.txt || true
+          printf 'Built for CI Linux test only. GPLv3+; not a production converter. No private customer DWG included.\n' > package/README.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: libredwg-linux-candidate
+          path: package/
+
+      - name: Capture candidate build diagnostics
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo 'LibreDWG build diagnostics — no customer file present'
+            date -u
+            uname -a
+            echo 'Compiler:'
+            gcc --version | head -n 1
+            echo 'Converter binaries:'
+            ls -l libredwg-0.14/programs/dwgread libredwg-0.14/programs/dwg2dxf 2>&1 || true
+            echo 'Local archive:'
+            ls -l libredwg-0.14.tar.gz 2>&1 || true
+            echo 'Output:'
+            ls -l package 2>&1 || true
+          } > candidate-build-diagnostics.txt 2>&1
+      - name: Upload diagnostics even when build fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: libredwg-build-diagnostics
+          path: candidate-build-diagnostics.txt
+          if-no-files-found: error
