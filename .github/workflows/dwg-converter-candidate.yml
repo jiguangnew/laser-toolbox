@@ -39,3 +39,28 @@ jobs:
         with:
           name: libredwg-linux-candidate
           path: package/
+
+      - name: Capture candidate build diagnostics
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo 'LibreDWG build diagnostics — no customer file present'
+            date -u
+            uname -a
+            echo 'Compiler:'
+            gcc --version | head -n 1
+            echo 'Converter binaries:'
+            ls -l libredwg-0.14/programs/dwgread libredwg-0.14/programs/dwg2dxf 2>&1 || true
+            echo 'Local archive:'
+            ls -l libredwg-0.14.tar.gz 2>&1 || true
+            echo 'Output:'
+            ls -l package 2>&1 || true
+          } > candidate-build-diagnostics.txt 2>&1
+      - name: Upload diagnostics even when build fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: libredwg-build-diagnostics
+          path: candidate-build-diagnostics.txt
+          if-no-files-found: error
